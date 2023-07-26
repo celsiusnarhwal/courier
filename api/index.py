@@ -5,7 +5,7 @@ import aiohttp
 import starlette.datastructures
 import tomlkit as toml
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from path import Path
@@ -59,14 +59,14 @@ class Courier(BaseModel):
 
 class NotFoundMessage(BaseModel):
     text: str
-    punctuation: str = None
-    source: str
+    secret: str = None
+    ref: str
 
     # noinspection PyMethodParameters
     @model_validator(mode="after")
     def validate(cls, obj: Self):
         terminus = obj.text[-1]
-        obj.punctuation = terminus if terminus in string.punctuation else "."
+        obj.secret = terminus if terminus in string.punctuation else "."
         obj.text = obj.text.rstrip(string.punctuation)
         return obj
 
@@ -76,9 +76,14 @@ class NotFoundMessage(BaseModel):
         return TypeAdapter(NotFoundMessage).validate_python(random.choice(messages))
 
 
+def raise_404(internal: bool = False):
+    raise HTTPException(404, headers={"x-internal": internal})
+
+
 @app.api_route("/{_:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-async def resolver(request: Request):
+async def resolver(request: Request, internal: bool = False):
     host = request.headers.get("host", "")
+    internal = internal and host == "404.celsiusnarhwal.dev"
 
     if host == "courier.celsiusnarhwal.dev":
         return RedirectResponse(
@@ -88,20 +93,20 @@ async def resolver(request: Request):
     async with aiohttp.ClientSession() as session:
         async with session.get(
             "https://dns.google/resolve",
-            params={"name": f"courier.{request.client.host}", "type": "TXT"},
+            params={"name": f"_.{host}", "type": "TXT"},
         ) as resp:
             resp.raise_for_status()
             dns = await resp.json()
 
     if dns.get("Status") != 0:
-        raise HTTPException(404)
+        raise_404(internal)
 
     courier_record = next(
         (record for record in dns.get("Answer", []) if record), {}
     ).get("data")
 
     if not courier_record:
-        raise HTTPException(404)
+        raise_404(internal)
 
     courier = Courier.create(courier_record)
 
@@ -113,5 +118,10 @@ async def resolver(request: Request):
 @app.exception_handler(404)
 async def not_found(request: Request, _):
     return templates.TemplateResponse(
-        "404.html", {"request": request, "message": NotFoundMessage.get()}
+        "404.html",
+        {
+            "request": request,
+            "message": NotFoundMessage.get(),
+            "internal": request.headers.get("x-internal", False),
+        },
     )
