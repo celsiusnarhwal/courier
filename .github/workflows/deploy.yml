@@ -26,6 +26,9 @@ jobs:
           curl -sSL https://install.python-poetry.org | python -
           poetry export -o api/requirements.txt
 
+      - name: Build CSS
+        run: npm install && npm run tailwind
+
       - name: Deploy to Vercel
         run: npx vercel --yes --prod --token ${{ secrets.VERCEL_TOKEN }}
         env:

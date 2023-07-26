@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "tailwind": "npx tailwindcss -i ./api/css/globals.css -o ./api/css/output.css --watch"
+    "tailwind": "npx tailwindcss -i ./api/static/css/globals.css -o ./api/static/css/output.css"
   },
   "author": "",
   "license": "MIT",
