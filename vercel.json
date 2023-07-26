@@ -4,5 +4,17 @@
       "source": "/(.*)",
       "destination": "/api"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/:path(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?<subdomain>.*).celsiusnarwhal.dev"
+        }
+      ],
+      "destination": "https://:subdomain.celsiusnarhwal.dev/:path*"
+    }
   ]
 }
