@@ -5,7 +5,7 @@ import aiohttp
 import starlette.datastructures
 import tomlkit as toml
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from path import Path
@@ -78,7 +78,7 @@ class NotFoundMessage(BaseModel):
 
 @app.api_route("/{_:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def resolver(request: Request):
-    host = request.client.host
+    host = request.headers.get("host", "")
 
     if host == "courier.celsiusnarhwal.dev":
         return RedirectResponse(
