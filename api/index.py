@@ -45,10 +45,10 @@ class Courier(BaseModel):
             raise HTTPException(status_code=400, detail="Invalid TXT record")
 
     @property
-    def status_code(self):
+    def status_code(self) -> int:
         return 308 if self.permanent else 307
 
-    def destination(self, origin: starlette.datastructures.URL):
+    def destination(self, origin: starlette.datastructures.URL) -> URL:
         destination = URL(self.target)
 
         if self.path:
@@ -64,7 +64,7 @@ class NotFoundMessage(BaseModel):
 
     # noinspection PyMethodParameters
     @model_validator(mode="after")
-    def validate(cls, obj: Self):
+    def validate(cls, obj: Self) -> Self:
         terminus = obj.text[-1]
         obj.secret = terminus if terminus in string.punctuation else "."
         obj.text = obj.text.rstrip(string.punctuation)
@@ -93,7 +93,7 @@ async def resolver(request: Request, internal: bool = False):
     async with aiohttp.ClientSession() as session:
         async with session.get(
             "https://dns.google/resolve",
-            params={"name": f"_.{host}", "type": "TXT"},
+            params={"name": f"courier_{host}", "type": "TXT"},
         ) as resp:
             resp.raise_for_status()
             dns = await resp.json()
