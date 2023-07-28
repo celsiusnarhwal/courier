@@ -76,14 +76,9 @@ class NotFoundMessage(BaseModel):
         return TypeAdapter(NotFoundMessage).validate_python(random.choice(messages))
 
 
-def raise_404(internal: bool = False):
-    raise HTTPException(404, headers={"x-internal": internal})
-
-
 @app.api_route("/{_:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-async def resolver(request: Request, internal: bool = False):
+async def resolver(request: Request):
     host = request.headers.get("host", "")
-    internal = internal and host == "404.celsiusnarhwal.dev"
 
     if host == "courier.celsiusnarhwal.dev":
         return RedirectResponse(
@@ -99,14 +94,14 @@ async def resolver(request: Request, internal: bool = False):
             dns = await resp.json()
 
     if dns.get("Status") != 0:
-        raise_404(internal)
+        raise HTTPException(404, detail="No Courier TXT record found")
 
     courier_record = next(
         (record for record in dns.get("Answer", []) if record), {}
     ).get("data")
 
     if not courier_record:
-        raise_404(internal)
+        raise HTTPException(404, detail="No Courier TXT record found")
 
     courier = Courier.create(courier_record)
 
@@ -122,6 +117,5 @@ async def not_found(request: Request, _):
         {
             "request": request,
             "message": NotFoundMessage.get(),
-            "internal": request.headers.get("x-internal", False),
         },
     )
