@@ -23,38 +23,44 @@ templates = Jinja2Templates(directory=HERE / "templates")
 
 
 class Courier(BaseModel):
+    origin: starlette.datastructures.URL
     target: str
     path: bool = False
     permanent: bool = False
 
     @classmethod
-    def create(cls, txt_record: str) -> Self:
-        data = {}
+    def create(cls, txt_record: str, origin: starlette.datastructures.URL) -> Self:
+        data = {"origin": origin}
 
         for attr in txt_record.split(";"):
             try:
                 key, value = attr.split("=")
             except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid TXT record")
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid TXT record: {txt_record}"
+                )
 
             data[key] = value
 
         try:
             return TypeAdapter(Courier).validate_python(data)
         except ValidationError:
-            raise HTTPException(status_code=400, detail="Invalid TXT record")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid TXT record: {txt_record}"
+            )
 
     @property
     def status_code(self) -> int:
         return 308 if self.permanent else 307
 
-    def destination(self, origin: starlette.datastructures.URL) -> URL:
+    @property
+    def redirect(self) -> RedirectResponse:
         destination = URL(self.target)
 
         if self.path:
-            destination = destination / origin.path.lstrip("/")
+            destination = destination / self.origin.path.lstrip("/")
 
-        return destination
+        return RedirectResponse(destination, status_code=self.status_code)
 
 
 class NotFoundMessage(BaseModel):
@@ -64,11 +70,11 @@ class NotFoundMessage(BaseModel):
 
     # noinspection PyMethodParameters
     @model_validator(mode="after")
-    def validate(cls, obj: Self) -> Self:
-        terminus = obj.text[-1]
-        obj.secret = terminus if terminus in string.punctuation else "."
-        obj.text = obj.text.rstrip(string.punctuation)
-        return obj
+    def post_init(cls, message: Self) -> Self:
+        terminus = message.text[-1]
+        message.secret = terminus if terminus in string.punctuation else "."
+        message.text = message.text.rstrip(string.punctuation)
+        return message
 
     @classmethod
     def get(cls) -> Self:
@@ -103,14 +109,13 @@ async def resolver(request: Request):
     if not courier_record:
         raise HTTPException(404, detail="No Courier TXT record found")
 
-    courier = Courier.create(courier_record)
+    courier = Courier.create(courier_record, request.url)
 
-    return RedirectResponse(
-        url=courier.destination(request.url), status_code=courier.status_code
-    )
+    return courier.redirect
 
 
 @app.exception_handler(404)
+@app.exception_handler(400)
 async def not_found(request: Request, _):
     return templates.TemplateResponse(
         "404.html",
