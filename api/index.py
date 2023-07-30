@@ -9,7 +9,13 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from path import Path
-from pydantic import BaseModel, TypeAdapter, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
 from typing_extensions import Self
 from yarl import URL
 
@@ -23,6 +29,8 @@ templates = Jinja2Templates(directory=HERE / "templates")
 
 
 class Courier(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     origin: starlette.datastructures.URL
     target: str
     path: bool = False
@@ -85,11 +93,6 @@ class NotFoundMessage(BaseModel):
 @app.api_route("/{_:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def resolver(request: Request):
     host = request.headers.get("host", "")
-
-    if host == "courier.celsiusnarhwal.dev":
-        return RedirectResponse(
-            url="https://github.com/celsiusnarhwal/courier", status_code=308
-        )
 
     async with aiohttp.ClientSession() as session:
         async with session.get(

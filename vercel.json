@@ -11,6 +11,16 @@
       "has": [
         {
           "type": "host",
+          "value": "courier.celsiusnarhwal.dev"
+        }
+      ],
+      "destination": "https://github.com/celsiusnarhwal/courier"
+    },
+    {
+      "source": "/:path(.*)",
+      "has": [
+        {
+          "type": "host",
           "value": "(?<subdomain>.*).celsiusnarwhal.dev"
         }
       ],
