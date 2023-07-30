@@ -1,6 +1,6 @@
 # Courier
 
-Courier is an internal domain forwarding service for [celsiusnarhwal.dev](https://celsiusnarhwal.dev).
+Courier is an internal domain forwarding service for my internet domains.
 
 ## License
 
